@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Station</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .weather-container {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        h1 {
+            color: #333333;
+        }
+
+        .weather-info {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-around;
+            margin-top: 20px;
+        }
+
+        .weather-item {
+            width: 45%;
+            padding: 10px;
+            margin: 10px;
+            box-sizing: border-box;
+            border: 1px solid #cccccc;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        .weather-icon {
+            width: 36px;
+            height: 36px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="weather-container">
+        <h1>Weather Information</h1>
+
+        <div class="weather-info">
+            <div class="weather-item">
+                <img class="weather-icon" src="temperature.png" alt="Temperature Icon">
+                <div id="temperature">Temperature: Loading...</div>
+            </div>
+
+            <div class="weather-item">
+                <img class="weather-icon" src="humidity.png" alt="Humidity Icon">
+                <div id="humidity">Humidity: Loading...</div>
+            </div>
+
+            <div class="weather-item">
+                <img class="weather-icon" src="pressure.png" alt="Pressure Icon">
+                <div id="pressure">Pressure: Loading...</div>
+            </div>
+
+            <div class="weather-item">
+                <img class="weather-icon" src="altitude.png" alt="Altitude Icon">
+                <div id="altitude">Altitude: Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Fetch weather data from ESP32 API endpoint
+        function fetchWeatherData() {
+            fetch('/weather-data')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('temperature').innerHTML = `<img class="weather-icon" src="temperature.png" alt="Temperature Icon"> Temperature: ${data.temperature} °C`;
+                    
+                    // Set temperature icon dynamically based on temperature range
+                    const temperatureIcon = document.getElementById('temperatureIcon');
+                    if (data.temperature < 10) {
+                        temperatureIcon.src = 'cold-icon.png';
+                    } else if (data.temperature < 25) {
+                        temperatureIcon.src = 'moderate-icon.png';
+                    } else {
+                        temperatureIcon.src = 'hot-icon.png';
+                    }
+
+                    document.getElementById('humidity').innerHTML = `<img class="weather-icon" src="humidity.png" alt="Humidity Icon"> Humidity: ${data.humidity} %`;
+                    document.getElementById('pressure').innerHTML = `<img class="weather-icon" src="pressure.png" alt="Pressure Icon"> Pressure: ${data.pressure} hPa`;
+                    document.getElementById('altitude').innerHTML = `<img class="weather-icon" src="altitude.png" alt="Altitude Icon"> Altitude: ${data.altitude} meters`;
+                })
+                .catch(error => console.error('Error fetching weather data:', error));
+        }
+
+        // Fetch weather data on page load
+        document.addEventListener('DOMContentLoaded', function () {
+            fetchWeatherData();
+        });
+
+        // Refresh weather data every 5 minutes (adjust as needed)
+        setInterval(fetchWeatherData, 300000);
+    </script>
+
+</body>
+</html>
