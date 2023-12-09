@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Temperature Monitoring</title>
+    <title>Weather Smart Monitoring</title>
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -59,23 +59,28 @@
 </head>
 <body>
 
-    <form action="/submit" method="post">
+    <form action="/submit" method="get">
         <h1>Temperature Monitoring System</h1>
-
-        <label for="email">Email:</label>
-        <input type="email" id="email" name="email" required>
-
+    
+        <label for="email">Enter Email: </label>
+        <input type="email" id="email" name="email" required %EMAIL_INPUT%>
+        Enable Email Notification<input type="checkbox" name="enable_email_input" value="true" %ENABLE_EMAIL%>
+    
         <label for="threshold">Temperature Threshold:</label>
-        <input type="number" id="temp" name="threshold" required>
-
+        <input type="number" id="temp" name="threshold" required %TEMPERATURE_THRESHOLD%>
+    
         <label for="Humidity">Humidity Threshold:</label>
-        <input type="number" id="Humidity" name="Humidity" required>
-
+        <input type="number" id="Humidity" name="Humidity" required %HUMIDITY_THRESHOLD%>
+    
         <label for="Pressure">Pressure Threshold:</label>
-        <input type="number" id="Pressure" name="Pressure" required>
-
+        <input type="number" id="Pressure" name="Pressure" required %PRESSURE_THRESHOLD%>
+    
+        <label for="Altitude">Altitude Threshold:</label>
+        <input type="number" id="Altitude" name="Altitude" required %ALTITUDE_THRESHOLD%>
+    
         <input type="submit" value="Submit">
     </form>
+    
 
 </body>
 </html>

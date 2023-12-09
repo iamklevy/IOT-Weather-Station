@@ -59,22 +59,26 @@
 
         <div class="weather-info">
             <div class="weather-item">
-                <img class="weather-icon" src="temperature.png" alt="Temperature Icon">
+                <img class="weather-icon" src="" alt="Weather Icon" id="Main-Weather-Icon">
+                
+            </div>
+            <div class="weather-item">
+                <img class="weather-icon" src="Icons/pngwing.com.png" alt="Temperature Icon ">
                 <div id="temperature">Temperature: Loading...</div>
             </div>
 
             <div class="weather-item">
-                <img class="weather-icon" src="humidity.png" alt="Humidity Icon">
+                <img class="weather-icon" src="Icons/rain.png" alt="Humidity Icon">
                 <div id="humidity">Humidity: Loading...</div>
             </div>
 
             <div class="weather-item">
-                <img class="weather-icon" src="pressure.png" alt="Pressure Icon">
+                <img class="weather-icon" src="Icons\pressure.png" alt="Pressure Icon">
                 <div id="pressure">Pressure: Loading...</div>
             </div>
 
             <div class="weather-item">
-                <img class="weather-icon" src="altitude.png" alt="Altitude Icon">
+                <img class="weather-icon" src="Icons/altitude.png" alt="Altitude Icon">
                 <div id="altitude">Altitude: Loading...</div>
             </div>
         </div>
@@ -91,11 +95,11 @@
                     // Set temperature icon dynamically based on temperature range
                     const temperatureIcon = document.getElementById('temperatureIcon');
                     if (data.temperature < 10) {
-                        temperatureIcon.src = 'cold-icon.png';
-                    } else if (data.temperature < 25) {
-                        temperatureIcon.src = 'moderate-icon.png';
+                        temperatureIcon.src = 'Icons\snowflake.png';
+                    } else if (data.temperature < 30) {
+                        temperatureIcon.src = 'Icons\sunny.png';
                     } else {
-                        temperatureIcon.src = 'hot-icon.png';
+                        temperatureIcon.src = 'Icons\Cloudy';
                     }
 
                     document.getElementById('humidity').innerHTML = `<img class="weather-icon" src="humidity.png" alt="Humidity Icon"> Humidity: ${data.humidity} %`;
