@@ -59,27 +59,27 @@
 
         <div class="weather-info">
             <div class="weather-item">
-                <img class="weather-icon" src="" alt="Weather Icon" id="Main-Weather-Icon">
+                <img class="weather-icon" src="" alt="Weather Icon" id="Main_Weather_Icon">
                 
             </div>
             <div class="weather-item">
-                <img class="weather-icon" src="Icons/pngwing.com.png" alt="Temperature Icon ">
-                <div id="temperature">Temperature: Loading...</div>
+                <img class="weather-icon" src="Icons/Temp.png" alt="Temperature Icon ">
+                <div id="temperature">Temperature: %TEMPERATURE%&deg;C</div>
             </div>
 
             <div class="weather-item">
                 <img class="weather-icon" src="Icons/rain.png" alt="Humidity Icon">
-                <div id="humidity">Humidity: Loading...</div>
+                <div id="humidity">Humidity: %HUMIDITY% %</div>
             </div>
 
             <div class="weather-item">
                 <img class="weather-icon" src="Icons\pressure.png" alt="Pressure Icon">
-                <div id="pressure">Pressure: Loading...</div>
+                <div id="pressure">Pressure: %PRESSURE% hPa</div>
             </div>
 
             <div class="weather-item">
                 <img class="weather-icon" src="Icons/altitude.png" alt="Altitude Icon">
-                <div id="altitude">Altitude: Loading...</div>
+                <div id="altitude">Altitude: %ALTITUDE% meters</div>
             </div>
         </div>
     </div>
@@ -90,18 +90,18 @@
             fetch('/weather-data')
                 .then(response => response.json())
                 .then(data => {
-                    document.getElementById('temperature').innerHTML = `<img class="weather-icon" src="temperature.png" alt="Temperature Icon"> Temperature: ${data.temperature} °C`;
+                    document.getElementById('Main_Weather_Icon').innerHTML = `<img class="weather-icon" src="" alt="Main Weather Icon">`;
                     
                     // Set temperature icon dynamically based on temperature range
-                    const temperatureIcon = document.getElementById('temperatureIcon');
+                    const weather_Icon = document.getElementById('Main_Weather_Icon');
                     if (data.temperature < 10) {
-                        temperatureIcon.src = 'Icons\snowflake.png';
+                        weather_Icon.src = 'Icons\snowflake.png';
                     } else if (data.temperature < 30) {
-                        temperatureIcon.src = 'Icons\sunny.png';
+                        weather_Icon.src = 'Icons\sunny.png';
                     } else {
-                        temperatureIcon.src = 'Icons\Cloudy';
+                        weather_Icon.src = 'Icons\Cloudy';
                     }
-
+                    document.getElementById('temperature').innerHTML = `<img class="weather-icon" src="Icons/Temp.png" alt="Temperature Icon"> Temperature: ${data.temperature} &deg;C`;
                     document.getElementById('humidity').innerHTML = `<img class="weather-icon" src="humidity.png" alt="Humidity Icon"> Humidity: ${data.humidity} %`;
                     document.getElementById('pressure').innerHTML = `<img class="weather-icon" src="pressure.png" alt="Pressure Icon"> Pressure: ${data.pressure} hPa`;
                     document.getElementById('altitude').innerHTML = `<img class="weather-icon" src="altitude.png" alt="Altitude Icon"> Altitude: ${data.altitude} meters`;
@@ -114,8 +114,8 @@
             fetchWeatherData();
         });
 
-        // Refresh weather data every 5 minutes (adjust as needed)
-        setInterval(fetchWeatherData, 300000);
+        // Refresh weather data every 2 minutes
+        setInterval(fetchWeatherData, 120000);
     </script>
 
 </body>
