@@ -5,6 +5,8 @@
 #include "ESPAsyncWebServer.h"
 #include "ESP32_MailClient.h"
 #include <DHT.h>
+#include <vector>
+#include <LinearRegression.h>
 
 // Replace with your network credentials
 const char* ssid = "####";
@@ -64,7 +66,8 @@ String readAltitude() {
 }
 
 const char index_html[] PROGMEM = R"rawliteral(
-<!DOCTYPE HTML><html>
+<!DOCTYPE HTML>
+<html>
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
@@ -164,7 +167,8 @@ setInterval(function ( ) {
   xhttp.send();
 }, 10000 ) ;
 </script>
-</html>)rawliteral";
+</html>
+)rawliteral";
 
 // Replaces placeholder with sensor values
 String processor(const String& var){
@@ -181,6 +185,43 @@ String processor(const String& var){
     return readPressure();
   }
   return String();
+}
+
+
+
+
+float mean(const vector<float>& data) {
+    float sum = 0.0;
+    for (const float& value : data) {
+        sum += value;
+    }
+    return sum / data.size();
+}
+
+
+float covariance(const vector<float>& x, const vector<float>& y) {
+    float sum = 0.0;
+    float xMean = mean(x);
+    float yMean = mean(y);
+
+    for (size_t i = 0; i < x.size(); ++i) {
+        sum += (x[i] - xMean) * (y[i] - yMean);
+    }
+
+    return sum / x.size();
+}
+
+// Gets M and B and puts them in a pair variable
+pair<float, float> linearRegression(const vector<float>& x, const vector<float>& y) {
+    float m = covariance(x, y) / covariance(x, x);
+    float b = mean(y) - m * mean(x);
+
+    return make_pair(m, b);
+}
+
+//predicts the value
+float predict(float x, float m, float b) {
+    return m * x + b;
 }
 
 void setup(){
@@ -203,6 +244,44 @@ void setup(){
   if (!bmp.begin()) {
     Serial.println("Could not find a valid BMP180 sensor, check wiring!");
   }
+  
+  vector<float> days = {1, 2, 3, 4, 5, 6};
+  vector<float> highTemperatures = {24, 25, 26, 24, 23,22 , 22};
+  vector<float> lowTemperatures = {15, 14, 15, 15, 15, 13, 14};
+
+  // Calculate linear regression coefficients for high temperatures
+  pair<float, float> highCoefficients = linearRegression(days, highTemperatures);
+
+  // Calculate linear regression coefficients for low temperatures
+  pair<float, float> lowCoefficients = linearRegression(days, lowTemperatures);
+
+
+  
+  vector<float> highPredictions;
+  vector<float> lowPredictions; 
+  int numOfDaysToPredict = 7;
+
+
+  for (int i = 1; i <= numDaysToPredict; ++i) {
+      float highPrediction = predict(i + 6, highCoefficients.first, highCoefficients.second);
+      float lowPrediction = predict(i + 6, lowCoefficients.first, lowCoefficients.second);
+
+      highPredictions.push_back(highPrediction);
+      lowPredictions.push_back(lowPrediction);
+      days.push_back(i+6);
+  }
+
+  for (size_t i = 0; i < highPredictions.size(); ++i) {
+      Serial.print("Day ");
+      Serial.print(i + days.size() + 1);
+      Serial.print(" - High: ");
+      Serial.print(highPredictions[i]);
+      Serial.print("°C, Low: ");
+      Serial.print(lowPredictions[i]);
+      Serial.println("°C");
+    }
+
+
 
   // Route for root / web page
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
