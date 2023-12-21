@@ -1,309 +1,378 @@
-#include <Wire.h>
-#include <Adafruit_Sensor.h>
-#include <Adafruit_BMP085.h>
-#include "WiFi.h"
-#include "ESPAsyncWebServer.h"
+#include <WiFi.h>
+#include <AsyncTCP.h>
+#include <ESPAsyncWebServer.h>
 #include "ESP32_MailClient.h"
+#include <Adafruit_Sensor.h>
 #include <DHT.h>
-#include <vector>
-#include <LinearRegression.h>
+#include <Adafruit_BMP085.h>
 
-// Replace with your network credentials
-const char* ssid = "####";
-const char* password = "#####";
+#define DHTPIN 18     
+#define DHTTYPE DHT22  
 
-// DHT sensor
-#define DHTPIN 15     // Digital pin connected to the DHT sensor
-#define DHTTYPE    DHT22     // DHT 11
 DHT dht(DHTPIN, DHTTYPE);
-
-// BMP180 sensor
 Adafruit_BMP085 bmp;
 
-// Create AsyncWebServer object on port 80
+// REPLACE WITH YOUR NETWORK CREDENTIALS
+const char* ssid = "###";
+const char* password = "######";
+
+// To send Emails using Gmail on port 465 (SSL)
+#define emailSenderAccount "########"
+#define emailSenderPassword "mycclrqisaitxigu"
+#define smtpServer "smtp.gmail.com"
+#define smtpServerPort 465
+#define emailSubject "[ALERT] ESP32 Temperature"
+
+#define ALTITUDE 15.0
+
+
+// Default Recipient Email Address
+String inputMessage = "#######";
+String enableEmailChecked = "checked";
+String inputMessage2 = "true";
+// Default Threshold Temperature Value
+String inputMessage3 = "25.0";
+
+String lastTemperature;
+String lastHumidity;
+String lastPressure;
+String lastAltitude;
+
+
+// HTML web page to handle 3 input fields (email_input, enable_email_input, threshold_input)
+const char index_html[] PROGMEM = R"rawliteral(
+<!DOCTYPE HTML>
+<html>
+
+<head>
+    <title>Weather Station</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css"
+        crossorigin="anonymous">
+        <style>
+        *{
+             margin: 10px;
+        }
+         h2 {
+      font-size: 3.0rem;
+      text-align: center; 
+    }
+      p {
+      font-size: 2.0rem;
+      text-align: center;
+    }
+        form {
+      max-width: 400px;
+      margin: auto;
+      font-family: 'Arial', sans-serif;
+      padding: 20px;
+      background-color: #dedcdc;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+       }
+          .units {
+      font-size: 1.2rem;
+    }
+       .dht-labels {
+      font-size: 1.5rem;
+      vertical-align: middle;
+      padding-bottom: 15px;
+    }
+     .bmp-labels {
+      font-size: 1.5rem;
+      vertical-align: middle;
+      padding-bottom: 15px;
+    }
+      input[type="submit"] {
+            display: block;
+            margin: 0 auto;
+        }
+    body {
+    background-color: #c2c0c0;
+}
+    </style>
+        </head>
+        <body>
+    <h2>ESP32 Weather Station</h2>
+    <form action="/get">
+        Email Address <input type="email" name="email_input" value="%EMAIL_INPUT%" required><br>
+        Enable Email Notification <input type="checkbox" name="enable_email_input" value="true" %ENABLE_EMAIL%><br>
+        Temperature Threshold <input type="number" step="0.1" name="threshold_input" value="%THRESHOLD%" required><br>
+        <input type="submit" value="Submit">
+    </form>
+
+    <p>
+    <i class="fas fa-thermometer-half" style="color:#059e8a;"></i>
+    <span class="dht-labels">Temperature</span>
+    <span id="temperature">%TEMPERATURE%</span>
+    <sup class="units">&deg;C</sup>
+  </p>
+
+    <p>
+      <i class="fas fa-tint" style="color:#00add6;"></i>
+      <span class="dht-labels">Humidity</span>
+      <span id="humidity">%HUMIDITY%</span>
+      <sup class="units">%</sup>
+    </p>
+
+     <p>
+      <i class="fas fa-bars" style="color:#38059e;"></i>
+      <span class="bmp-labels">Altitude</span>
+      <span id="altitude">%ALTITUDE%</span>
+      <sup class="units">meters</sup>
+    </p>
+
+    <p>
+      <i class="fas fa-parking" style="color:#030b0b;"></i>
+      <span class="bmp-labels">Pressure</span>
+      <span id="pressure">%PRESSURE%</span>
+      <sup class="units">hPa</sup>
+    </p>
+
+
+    </body>
+</body>
+
+</html>
+)rawliteral";
+
+void notFound(AsyncWebServerRequest* request) {
+  request->send(404, "text/plain", "Not found");
+}
+
 AsyncWebServer server(80);
 
 String readDHTTemperature() {
-  // Sensor readings may also be up to 2 seconds 'old' (it's a very slow sensor)
-  // Read temperature as Celsius (the default)
   float t = dht.readTemperature();
-  if (isnan(t)) {    
+  if (isnan(t)) {
     Serial.println("Failed to read from DHT sensor!");
     return "--";
-  }
-  else {
+  } else {
     Serial.println(t);
     return String(t);
   }
 }
 
 String readDHTHumidity() {
-  // Sensor readings may also be up to 2 seconds 'old' (it's a very slow sensor)
-  float h = dht.readHumidity();
-  if (isnan(h)) {
+  float humidity = dht.readHumidity();
+  if(isnan(humidity)){
     Serial.println("Failed to read from DHT sensor!");
     return "--";
   }
-  else {
-    Serial.println(h);
-    return String(h);
+  else{
+    return String(humidity);
   }
 }
-
-String readBMPTemperature() {
-  // Read temperature from BMP180 sensor
-  return String(bmp.readTemperature());
-}
-
 String readPressure() {
-  // Read pressure from BMP180 sensor
-  return String(bmp.readPressure());
+  float pressure = bmp.readPressure();
+  if (isnan(pressure)) {    
+    Serial.println("Failed to read from BMP sensor!");
+    return "--";
+  }
+  return String(pressure);
 }
 
 String readAltitude() {
-  // Read altitude from BMP180 sensor
-  return String(bmp.readAltitude());
+  float altitude = bmp.readAltitude();
+  if (isnan(altitude)) {    
+    Serial.println("Failed to read from BMP sensor!");
+    return "--";
+  }
+  return String(altitude);
 }
 
-const char index_html[] PROGMEM = R"rawliteral(
-<!DOCTYPE HTML>
-<html>
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
-  <style>
-    html {
-     font-family: Arial;
-     display: inline-block;
-     margin: 0px auto;
-     text-align: center;
-    }
-    h2 { font-size: 3.0rem; }
-    p { font-size: 3.0rem; }
-    .units { font-size: 1.2rem; }
-    .dht-labels{
-      font-size: 1.5rem;
-      vertical-align:middle;
-      padding-bottom: 15px;
-    }
-    .bmp-labels{
-      font-size: 1.5rem;
-      vertical-align:middle;
-      padding-bottom: 15px;
-    }
-  </style>
-</head>
-<body>
-  <h2>ESP32 Weather Station</h2>
-  <p>
-    <i class="fas fa-thermometer-half" style="color:#059e8a;"></i> 
-    <span class="dht-labels">Temperature</span> 
-    <span id="temperature">%TEMPERATURE%</span>
-    <sup class="units">&deg;C</sup>
-  </p>
-  <p>
-    <i class="fas fa-tint" style="color:#00add6;"></i> 
-    <span class="dht-labels">Humidity</span>
-    <span id="humidity">%HUMIDITY%</span>
-    <sup class="units">%</sup>
-  </p>
-  <p>
-    <i class="fas fa-bars" style="color:#38059e;"></i> 
-    <span class="bmp-labels">Altitude</span> 
-    <span id="altitude">%ALTITUDE%</span>
-    <sup class="units">meters</sup>
-  </p>
-  <p>
-    <i class="fas fa-bars" style="color:#00d6c8;"></i> 
-    <span class="bmp-labels">Pressure</span>
-    <span id="pressure">%PRESSURE%</span>
-    <sup class="units">hPa</sup>
-  </p>
-</body>
-<script>
-setInterval(function ( ) {
-  var xhttp = new XMLHttpRequest();
-  xhttp.onreadystatechange = function() {
-    if (this.readyState == 4 && this.status == 200) {
-      document.getElementById("temperature").innerHTML = this.responseText;
-    }
-  };
-  xhttp.open("GET", "/temperature", true);
-  xhttp.send();
-}, 10000 ) ;
-
-setInterval(function ( ) {
-  var xhttp = new XMLHttpRequest();
-  xhttp.onreadystatechange = function() {
-    if (this.readyState == 4 && this.status == 200) {
-      document.getElementById("humidity").innerHTML = this.responseText;
-    }
-  };
-  xhttp.open("GET", "/humidity", true);
-  xhttp.send();
-}, 10000 ) ;
-
-setInterval(function ( ) {
-  var xhttp = new XMLHttpRequest();
-  xhttp.onreadystatechange = function() {
-    if (this.readyState == 4 && this.status == 200) {
-      document.getElementById("altitude").innerHTML = this.responseText;
-    }
-  };
-  xhttp.open("GET", "/altitude", true);
-  xhttp.send();
-}, 10000 ) ;
-
-setInterval(function ( ) {
-  var xhttp = new XMLHttpRequest();
-  xhttp.onreadystatechange = function() {
-    if (this.readyState == 4 && this.status == 200) {
-      document.getElementById("pressure").innerHTML = this.responseText;
-    }
-  };
-  xhttp.open("GET
-
-", "/pressure", true);
-  xhttp.send();
-}, 10000 ) ;
-</script>
-</html>
-)rawliteral";
-
-// Replaces placeholder with sensor values
-String processor(const String& var){
-  if(var == "TEMPERATURE"){
-    return readDHTTemperature();
-  }
-  else if(var == "HUMIDITY"){
-    return readDHTHumidity();
-  }
-  else if(var == "ALTITUDE"){
-    return readAltitude();
-  }
-  else if(var == "PRESSURE"){
-    return readPressure();
+String processor(const String& var) {
+  //Serial.println(var);
+  if (var == "TEMPERATURE") {
+    return lastTemperature;
+  } else if (var == "HUMIDITY") {
+    return lastHumidity;
+  } else if (var == "EMAIL_INPUT") {
+    return inputMessage;
+  } else if (var == "ALTITUDE") {
+    return lastAltitude;
+  } else if (var == "PRESSURE") {
+    return lastPressure;
+  } else if (var == "ENABLE_EMAIL") {
+    return enableEmailChecked;
+  } else if (var == "THRESHOLD") {
+    return inputMessage3;
   }
   return String();
 }
 
+bool emailSent = false;
 
+const char* PARAM_INPUT_1 = "email_input";
+const char* PARAM_INPUT_2 = "enable_email_input";
+const char* PARAM_INPUT_3 = "threshold_input";
 
+// Interval between sensor readings. Learn more about timers: https://RandomNerdTutorials.com/esp32-pir-motion-sensor-interrupts-timers/
+unsigned long previousMillis = 0;
+const long interval = 5000;
 
-float mean(const vector<float>& data) {
-    float sum = 0.0;
-    for (const float& value : data) {
-        sum += value;
-    }
-    return sum / data.size();
-}
+// The Email Sending data object contains config and data to send
+SMTPData smtpData;
 
+// Callback function to get the Email sending status
+void sendCallback(SendStatus msg) {
+  // Print the current status
+  Serial.println(msg.info());
 
-float covariance(const vector<float>& x, const vector<float>& y) {
-    float sum = 0.0;
-    float xMean = mean(x);
-    float yMean = mean(y);
-
-    for (size_t i = 0; i < x.size(); ++i) {
-        sum += (x[i] - xMean) * (y[i] - yMean);
-    }
-
-    return sum / x.size();
-}
-
-// Gets M and B and puts them in a pair variable
-pair<float, float> linearRegression(const vector<float>& x, const vector<float>& y) {
-    float m = covariance(x, y) / covariance(x, x);
-    float b = mean(y) - m * mean(x);
-
-    return make_pair(m, b);
-}
-
-//predicts the value
-float predict(float x, float m, float b) {
-    return m * x + b;
-}
-
-void setup(){
-  // Serial port for debugging purposes
-  Serial.begin(115200);
-  //Wire.begin (21, 22);
-
-  // Connect to Wi-Fi
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(1000);
-    Serial.println("Connecting to WiFi..");
+  // Do something when complete
+  if (msg.success()) {
+    Serial.println("----------------");
   }
+}
 
-  // Print ESP32 Local IP Address
+bool sendEmailNotification(String emailMessage) {
+  // Set the SMTP Server Email host, port, account and password
+  smtpData.setLogin(smtpServer, smtpServerPort, emailSenderAccount, emailSenderPassword);
+
+  // For library version 1.2.0 and later which STARTTLS protocol was supported,the STARTTLS will be
+  // enabled automatically when port 587 was used, or enable it manually using setSTARTTLS function.
+  //smtpData.setSTARTTLS(true);
+
+  // Set the sender name and Email
+  smtpData.setSender("ESP32", emailSenderAccount);
+
+  // Set Email priority or importance High, Normal, Low or 1 to 5 (1 is highest)
+  smtpData.setPriority("High");
+
+  // Set the subject
+  smtpData.setSubject(emailSubject);
+
+  // Set the message with HTML format
+  smtpData.setMessage(emailMessage, true);
+
+  // Add recipients
+  smtpData.addRecipient(inputMessage);
+
+  smtpData.setSendCallback(sendCallback);
+
+  // Start sending Email, can be set callback function to track the status
+  if (!MailClient.sendMail(smtpData)) {
+    Serial.println("Error sending Email, " + MailClient.smtpErrorReason());
+    return false;
+  }
+  // Clear all data from Email object to free memory
+  smtpData.empty();
+  return true;
+}
+
+
+void setup() {
+  Serial.begin(115200);
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
+  if (WiFi.waitForConnectResult() != WL_CONNECTED) {
+    Serial.println("WiFi Failed!");
+    return;
+  }
+  Serial.println();
+  Serial.print("ESP IP Address: http://");
   Serial.println(WiFi.localIP());
 
+  // Start the DHT11 sensor
   dht.begin();
 
   if (!bmp.begin()) {
     Serial.println("Could not find a valid BMP180 sensor, check wiring!");
   }
-  
-  vector<float> days = {1, 2, 3, 4, 5, 6};
-  vector<float> highTemperatures = {24, 25, 26, 24, 23,22 , 22};
-  vector<float> lowTemperatures = {15, 14, 15, 15, 15, 13, 14};
 
-  // Calculate linear regression coefficients for high temperatures
-  pair<float, float> highCoefficients = linearRegression(days, highTemperatures);
-
-  // Calculate linear regression coefficients for low temperatures
-  pair<float, float> lowCoefficients = linearRegression(days, lowTemperatures);
-
-
-  
-  vector<float> highPredictions;
-  vector<float> lowPredictions; 
-  int numOfDaysToPredict = 7;
-
-
-  for (int i = 1; i <= numDaysToPredict; ++i) {
-      float highPrediction = predict(i + 6, highCoefficients.first, highCoefficients.second);
-      float lowPrediction = predict(i + 6, lowCoefficients.first, lowCoefficients.second);
-
-      highPredictions.push_back(highPrediction);
-      lowPredictions.push_back(lowPrediction);
-      days.push_back(i+6);
-  }
-
-  for (size_t i = 0; i < highPredictions.size(); ++i) {
-      Serial.print("Day ");
-      Serial.print(i + days.size() + 1);
-      Serial.print(" - High: ");
-      Serial.print(highPredictions[i]);
-      Serial.print("°C, Low: ");
-      Serial.print(lowPredictions[i]);
-      Serial.println("°C");
-    }
-
-
-
-  // Route for root / web page
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+  // Send web page to client
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send_P(200, "text/html", index_html, processor);
   });
-  server.on("/temperature", HTTP_GET, [](AsyncWebServerRequest *request){
+  server.on("/temperature", HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send_P(200, "text/plain", readDHTTemperature().c_str());
   });
-  server.on("/humidity", HTTP_GET, [](AsyncWebServerRequest *request){
+  server.on("/humidity", HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send_P(200, "text/plain", readDHTHumidity().c_str());
   });
-  server.on("/altitude", HTTP_GET, [](AsyncWebServerRequest *request){
+  server.on("/altitude", HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send_P(200, "text/plain", readAltitude().c_str());
   });
-  server.on("/pressure", HTTP_GET, [](AsyncWebServerRequest *request){
+  server.on("/pressure", HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send_P(200, "text/plain", readPressure().c_str());
   });
 
-  // Start server
+  // Receive an HTTP GET request at <ESP_IP>/get?email_input=<inputMessage>&enable_email_input=<inputMessage2>&threshold_input=<inputMessage3>
+  server.on("/get", HTTP_GET, [](AsyncWebServerRequest* request) {
+    // GET email_input value on <ESP_IP>/get?email_input=<inputMessage>
+    if (request->hasParam(PARAM_INPUT_1)) {
+      inputMessage = request->getParam(PARAM_INPUT_1)->value();
+      // GET enable_email_input value on <ESP_IP>/get?enable_email_input=<inputMessage2>
+      if (request->hasParam(PARAM_INPUT_2)) {
+        inputMessage2 = request->getParam(PARAM_INPUT_2)->value();
+        enableEmailChecked = "checked";
+      } else {
+        inputMessage2 = "false";
+        enableEmailChecked = "";
+      }
+      // GET threshold_input value on <ESP_IP>/get?threshold_input=<inputMessage3>
+      if (request->hasParam(PARAM_INPUT_3)) {
+        inputMessage3 = request->getParam(PARAM_INPUT_3)->value();
+      }
+    } else {
+      inputMessage = "No message sent";
+    }
+    Serial.println(inputMessage);
+    Serial.println(inputMessage2);
+    Serial.println(inputMessage3);
+    request->send(200, "text/html", "HTTP GET request sent to your ESP.<br><a href=\"/\">Return to Home Page</a>");
+  });
+  server.onNotFound(notFound);
   server.begin();
 }
 
-void loop(){
+void loop() {
+
+   String temp, humidity, pressure, altitude;
+  temp = readDHTTemperature();
+  humidity = readDHTHumidity();
+  pressure = readPressure();
+  altitude = readAltitude();
   
+  Serial.println("Temperature:");
+  Serial.println(temp + "c");
+  Serial.println("Humidity:");
+  Serial.println(humidity + "%");
+  Serial.println("Pressure:");
+  Serial.println(pressure + "hPa");
+  Serial.println("Altitude:");
+  Serial.println(altitude + "meters");
+
+  delay(3000);
+
+  unsigned long currentMillis = millis();
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
+    lastTemperature = readDHTTemperature();
+    lastHumidity = readDHTHumidity();
+    lastPressure = readPressure();
+    lastAltitude = readAltitude();
+
+    float temperature = lastTemperature.toFloat();
+    // Check if temperature is above threshold and if it needs to send the Email alert
+    if (temperature > inputMessage3.toFloat() && inputMessage2 == "true" && !emailSent) {
+      String emailMessage = String("Temperature above threshold. Current temperature: ") + String(temperature) + String("C");
+      if (sendEmailNotification(emailMessage)) {
+        Serial.println(emailMessage);
+        emailSent = true;
+      } else {
+        Serial.println("Email failed to send");
+      }
+    }
+    // Check if temperature is below threshold and if it needs to send the Email alert
+    else if ((temperature < inputMessage3.toFloat()) && inputMessage2 == "true" && emailSent) {
+      String emailMessage = String("Temperature below threshold. Current temperature: ") + String(temperature) + String(" C");
+      if (sendEmailNotification(emailMessage)) {
+        Serial.println(emailMessage);
+        emailSent = false;
+      } else {
+        Serial.println("Email failed to send");
+      }
+    }
+  }
 }

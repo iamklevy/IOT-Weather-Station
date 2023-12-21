@@ -1,0 +1,93 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+    <title>Weather Station</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css"
+        crossorigin="anonymous">
+        <style>
+        *{
+             margin: 10px;
+        }
+         h2 {
+      font-size: 3.0rem;
+      text-align: center; 
+    }
+      p {
+      font-size: 2.0rem;
+      text-align: center;
+    }
+        form {
+      max-width: 400px;
+      margin: auto;
+      font-family: 'Arial', sans-serif;
+      padding: 20px;
+      background-color: #dedcdc;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+       }
+          .units {
+      font-size: 1.2rem;
+    }
+       .dht-labels {
+      font-size: 1.5rem;
+      vertical-align: middle;
+      padding-bottom: 15px;
+    }
+     .bmp-labels {
+      font-size: 1.5rem;
+      vertical-align: middle;
+      padding-bottom: 15px;
+    }
+      input[type="submit"] {
+            display: block;
+            margin: 0 auto;
+        }
+    body {
+    background-color: #c2c0c0;
+}
+    </style>
+        </head>
+        <body>
+    <h2>ESP32 Weather Station</h2>
+    <form action="/get">
+        Email Address <input type="email" name="email_input" value="%EMAIL_INPUT%" required><br>
+        Enable Email Notification <input type="checkbox" name="enable_email_input" value="true" %ENABLE_EMAIL%><br>
+        Temperature Threshold <input type="number" step="0.1" name="threshold_input" value="%THRESHOLD%" required><br>
+        <input type="submit" value="Submit">
+    </form>
+
+    <p>
+    <i class="fas fa-thermometer-half" style="color:#059e8a;"></i>
+    <span class="dht-labels">Temperature</span>
+    <span id="temperature">%TEMPERATURE%</span>
+    <sup class="units">&deg;C</sup>
+  </p>
+
+    <p>
+      <i class="fas fa-tint" style="color:#00add6;"></i>
+      <span class="dht-labels">Humidity</span>
+      <span id="humidity">%HUMIDITY%</span>
+      <sup class="units">%</sup>
+    </p>
+
+     <p>
+      <i class="fas fa-bars" style="color:#38059e;"></i>
+      <span class="bmp-labels">Altitude</span>
+      <span id="altitude">%ALTITUDE%</span>
+      <sup class="units">meters</sup>
+    </p>
+
+    <p>
+      <i class="fas fa-parking" style="color:#030b0b;"></i>
+      <span class="bmp-labels">Pressure</span>
+      <span id="pressure">%PRESSURE%</span>
+      <sup class="units">hPa</sup>
+    </p>
+
+
+    </body>
+</body>
+
+</html>
